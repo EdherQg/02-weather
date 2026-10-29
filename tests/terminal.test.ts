@@ -7,11 +7,11 @@ test("la CLI procesa varias líneas por stdin y conserva ajustes al reiniciar", 
   const directory = await mkdtemp(join(tmpdir(), "weather-cli-terminal-"));
   const configPath = join(directory, "config.json");
 
-  async function run(input: string) {
+  async function run(input: string, env: Record<string, string> = {}) {
     const child = Bun.spawn({
       cmd: [process.execPath, "index.ts"],
       cwd: resolve(import.meta.dir, ".."),
-      env: { ...process.env, WEATHER_CLI_CONFIG: configPath },
+      env: { ...process.env, ...env, WEATHER_CLI_CONFIG: configPath },
       stdin: new Blob([input]),
       stdout: "pipe",
       stderr: "pipe",
@@ -23,6 +23,7 @@ test("la CLI procesa varias líneas por stdin y conserva ajustes al reiniciar", 
       ]);
       expect(stderr).toBe("");
       expect(code).toBe(0);
+      expect(stdout).not.toContain("\x1b[");
       return stdout;
     } finally {
       clearTimeout(timer);
@@ -36,6 +37,7 @@ test("la CLI procesa varias líneas por stdin y conserva ajustes al reiniciar", 
     expect(output).toContain("Ajustes (°F)");
     expect(output).toContain("No hay ciudades guardadas");
     expect(output).toContain("¡Hasta pronto!");
+    expect(await run("8\n1\n9\n", { NO_COLOR: "1" })).toContain("Temperatura configurada en °C");
   } finally {
     await rm(directory, { recursive: true, force: true });
   }

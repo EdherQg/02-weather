@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { createColors } from "../src/colors.ts";
 import { cityLabel, formatWeather, weatherDescription } from "../src/presentation.ts";
 import { currentWeather, ottawa } from "./fixtures.ts";
 
@@ -21,5 +22,18 @@ describe("presentación", () => {
     expect(weatherDescription(0)).toBe("Cielo despejado");
     expect(weatherDescription(95)).toBe("Tormenta eléctrica");
     expect(weatherDescription(999)).toContain("código 999");
+  });
+
+  test.each(["celsius", "fahrenheit"] as const)("resalta solo los valores de temperatura en %s", (unit) => {
+    const weather = { ...currentWeather, temperature: -1 };
+    const plain = formatWeather(ottawa, weather, unit, true);
+    const colored = formatWeather(ottawa, weather, unit, true, createColors(true));
+    const symbol = unit === "celsius" ? "°C" : "°F";
+
+    expect(colored).toContain(`Temperatura: \x1b[33m-1,0 ${symbol}\x1b[39m`);
+    expect(colored).toContain(`Sensación térmica: \x1b[33m4,7 ${symbol}\x1b[39m`);
+    expect(colored).toContain("  Humedad: 74 % | Viento: 7,6 km/h");
+    expect(Bun.stripANSI(colored)).toBe(plain);
+    expect(formatWeather(ottawa, weather, unit, true, createColors(false))).toBe(plain);
   });
 });

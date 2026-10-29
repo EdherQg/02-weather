@@ -1,3 +1,4 @@
+import { plainColors, type Colors } from "./colors.ts";
 import type { City, TemperatureUnit, Weather } from "./types.ts";
 
 const conditions: Record<number, string> = {
@@ -45,13 +46,19 @@ export function weatherDescription(code: number): string {
   return conditions[code] ?? `Condición desconocida (código ${code})`;
 }
 
-export function formatWeather(city: City, weather: Weather, unit: TemperatureUnit, isDefault: boolean): string {
+export function formatWeather(
+  city: City,
+  weather: Weather,
+  unit: TemperatureUnit,
+  isDefault: boolean,
+  colors: Colors = plainColors,
+): string {
   const symbol = unitLabel(unit);
   return [
     `\n  ${cityLabel(city)}${isDefault ? " [default]" : ""}`,
     `  ${weatherDescription(weather.weatherCode)}`,
-    `  Temperatura: ${numbers.format(weather.temperature)} ${symbol}`,
-    `  Sensación térmica: ${numbers.format(weather.apparentTemperature)} ${symbol}`,
+    `  Temperatura: ${colors.yellow(`${numbers.format(weather.temperature)} ${symbol}`)}`,
+    `  Sensación térmica: ${colors.yellow(`${numbers.format(weather.apparentTemperature)} ${symbol}`)}`,
     `  Humedad: ${weather.humidity} % | Viento: ${numbers.format(weather.windSpeed)} km/h`,
     `  Actualizado: ${weather.time.replace("T", " ")} (${weather.timezone})`,
     "  Fuente: Open-Meteo",

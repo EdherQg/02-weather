@@ -62,6 +62,8 @@ Esta es la apariencia que deseamos crear
 
 En las selecciones puedes introducir `0` para cancelar. Las opciones sin ciudades guardadas indican cómo agregar la primera.
 
+En una terminal, el menú y las preguntas se muestran en cyan, las temperaturas en amarillo, las confirmaciones en verde y los errores en rojo. Los colores se desactivan al redirigir la salida, en terminales con `TERM=dumb` o si la variable de entorno `NO_COLOR` está definida.
+
 El clima incluye temperatura, sensación térmica, descripción en español, humedad, viento y hora local de actualización:
 
 ```text
