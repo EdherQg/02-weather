@@ -42,6 +42,23 @@ describe("punto de entrada y estructura de las pruebas", () => {
       expect(await Bun.file(configPath).exists()).toBe(false);
     });
   });
+
+  test.each([
+    ["JSON corrupto", "{no es JSON"],
+    ["esquema inválido", JSON.stringify({ cities: [] })],
+  ])("sale con error sin sobrescribir una configuración con %s", async (_name, contents) => {
+    await withTestDirectory("index", async (directory) => {
+      const configPath = join(directory, "config.json");
+      await Bun.write(configPath, contents);
+      const result = await runBun(["src/index.ts"], { input: "9\n", env: { WEATHER_CLI_CONFIG: configPath } });
+      expect(result.code).toBe(1);
+      expect(result.stderr).toBe("");
+      expect(result.stdout).toContain("Error:");
+      expect(result.stdout).toContain("No se ha sobrescrito");
+      expect(result.stdout).not.toContain("WEATHER CLI");
+      expect(await Bun.file(configPath).text()).toBe(contents);
+    });
+  });
 });
 
 describe("compilación condicionada a las comprobaciones", () => {

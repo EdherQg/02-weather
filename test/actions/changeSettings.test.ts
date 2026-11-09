@@ -16,7 +16,7 @@ describe("changeSettings", () => {
     },
   );
 
-  test.each([[], ["0"], ["3", "abc", "0"]])("cancelar o terminar la entrada no guarda: %j", async (answers) => {
+  test.each([[], ["0"], ["3", "abc", "0"]].map((answers) => [answers] as const))("cancelar o terminar la entrada no guarda: %j", async (answers) => {
     const { context, store } = createActionContext(answers, savedConfig());
     const previous = context.config;
     await changeSettings(context);

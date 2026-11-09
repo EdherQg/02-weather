@@ -30,7 +30,7 @@ describe("setDefaultCity", () => {
     expect(store.saves).toHaveLength(0);
   });
 
-  test.each([[], ["0"], ["abc", "99", "0"]])("cancelar o terminar la entrada no guarda: %j", async (answers) => {
+  test.each([[], ["0"], ["abc", "99", "0"]].map((answers) => [answers] as const))("cancelar o terminar la entrada no guarda: %j", async (answers) => {
     const { context, store } = createActionContext(answers, savedConfig());
     await setDefaultCity(context);
     expect(context.config).toEqual(savedConfig());

@@ -8,7 +8,8 @@ describe("getWeather y getDefaultWeather", () => {
     const { context, io, store, weather } = createActionContext([], { ...savedConfig(), temperatureUnit: unit });
     const previous = context.config;
     await getWeather(context, madrid);
-    expect(weather.getWeather).toHaveBeenCalledExactlyOnceWith(madrid, unit);
+    expect(weather.getWeather).toHaveBeenCalledTimes(1);
+    expect(weather.getWeather).toHaveBeenCalledWith(madrid, unit);
     expect(io.text).toContain("Madrid, Comunidad de Madrid, España");
     expect(io.text).toContain(`Temperatura: 7,4 ${unit === "celsius" ? "°C" : "°F"}`);
     expect(io.text).not.toContain("[default]");
@@ -19,7 +20,8 @@ describe("getWeather y getDefaultWeather", () => {
   test("consulta la default por su id, no por su posición en la lista", async () => {
     const { context, io, weather } = createActionContext([], { ...savedConfig(), defaultCityId: madrid.id });
     await getDefaultWeather(context);
-    expect(weather.getWeather).toHaveBeenCalledExactlyOnceWith(madrid, "celsius");
+    expect(weather.getWeather).toHaveBeenCalledTimes(1);
+    expect(weather.getWeather).toHaveBeenCalledWith(madrid, "celsius");
     expect(io.text).toContain("España [default]");
   });
 

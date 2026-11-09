@@ -27,25 +27,7 @@ test("la CLI procesa varias líneas por stdin y conserva ajustes al reiniciar", 
   });
 }, 15_000);
 
-describe("arranque y fin de entrada de la CLI", () => {
-  test.each([
-    ["JSON corrupto", "{no es JSON"],
-    ["esquema inválido", JSON.stringify({ cities: [] })],
-  ])("sale con error sin sobrescribir una configuración con %s", async (_name, contents) => {
-    await withTestDirectory("terminal", async (directory) => {
-      const configPath = join(directory, "config.json");
-      await Bun.write(configPath, contents);
-      const result = await runBun(["src/index.ts"], { input: "9\n", env: { WEATHER_CLI_CONFIG: configPath } });
-
-      expect(result.code).toBe(1);
-      expect(result.stderr).toBe("");
-      expect(result.stdout).toContain("Error:");
-      expect(result.stdout).toContain("No se ha sobrescrito");
-      expect(result.stdout).not.toContain("WEATHER CLI");
-      expect(await Bun.file(configPath).text()).toBe(contents);
-    });
-  });
-
+describe("fin de entrada de la CLI", () => {
   test.each([
     ["entrada vacía", ""],
     ["EOF dentro de los ajustes", "8\n"],
@@ -62,5 +44,40 @@ describe("arranque y fin de entrada de la CLI", () => {
       expect(result.stdout).not.toContain("\x1b[");
       expect(await Bun.file(configPath).exists()).toBe(false);
     });
+  });
+});
+
+describe("Terminal directamente con stdin aislado", () => {
+  test("ask conserva las líneas pendientes, recorta espacios y devuelve null al terminar", async () => {
+    const result = await runBun(["-e", `
+      import { Terminal } from "./src/presentation/terminal.ts";
+      const listeners = process.listenerCount("SIGINT");
+      const terminal = new Terminal();
+      try {
+        const answers = [await terminal.ask("Primera: "), await terminal.ask("Segunda: "), await terminal.ask("Fin: ")];
+        terminal.write("RESULT:" + JSON.stringify(answers));
+      } finally { terminal.close(); }
+      console.log("LISTENERS:" + (process.listenerCount("SIGINT") - listeners));
+    `], { input: " primera \r\n segunda \r\n" });
+    expect(result.code).toBe(0);
+    expect(result.stderr).toBe("");
+    expect(result.stdout).toContain('RESULT:["primera","segunda",null]');
+    expect(result.stdout).toContain("LISTENERS:0");
+  });
+
+  test("SIGINT interrumpe las preguntas y close retira su listener incluso al repetirse", async () => {
+    const result = await runBun(["-e", `
+      import { Terminal } from "./src/presentation/terminal.ts";
+      const listeners = process.listenerCount("SIGINT");
+      const terminal = new Terminal();
+      process.emit("SIGINT");
+      const answer = await terminal.ask("No debe imprimirse");
+      terminal.close();
+      terminal.close();
+      console.log(JSON.stringify({ answer, listeners: process.listenerCount("SIGINT") - listeners }));
+    `]);
+    expect(result.code).toBe(0);
+    expect(result.stderr).toBe("");
+    expect(result.stdout.trim()).toBe('{"answer":null,"listeners":0}');
   });
 });

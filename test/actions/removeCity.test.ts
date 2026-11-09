@@ -12,7 +12,7 @@ describe("removeCity", () => {
     expect(store.saves).toHaveLength(0);
   });
 
-  test.each([[], ["0"], ["1"], ["1", ""], ["1", "n"]])("cancelar o no confirmar conserva los datos: %j", async (answers) => {
+  test.each([[], ["0"], ["1"], ["1", ""], ["1", "n"]].map((answers) => [answers] as const))("cancelar o no confirmar conserva los datos: %j", async (answers) => {
     const { context, store } = createActionContext(answers, savedConfig());
     const previous = context.config;
     await removeCity(context);

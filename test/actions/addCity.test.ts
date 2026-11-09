@@ -1,11 +1,15 @@
 import { describe, expect, test } from "bun:test";
 import { addCity } from "../../src/actions/addCity.ts";
-import { madrid, ottawa, savedConfig } from "../fixtures.ts";
+import { currentWeather, madrid, ottawa, savedConfig } from "../fixtures.ts";
 import { createActionContext } from "../helpers.ts";
 
 describe("addCity", () => {
   test("guarda la primera ciudad como default antes de consultar su clima", async () => {
     const { context, io, store, weather } = createActionContext(["Ottawa", "1"]);
+    weather.getWeather.mockImplementation(async () => {
+      expect(store.saves).toEqual([savedConfig([ottawa])]);
+      return currentWeather;
+    });
     await addCity(context);
     expect(weather.searchCities).toHaveBeenCalledWith("Ottawa");
     expect(context.config).toEqual(savedConfig([ottawa]));
@@ -26,7 +30,7 @@ describe("addCity", () => {
     expect(weather.getWeather).toHaveBeenCalledWith(madrid, "fahrenheit");
   });
 
-  test.each([[], ["0"], [""], ["  "], ["Ottawa", "0"], ["Ottawa"]])(
+  test.each([[], ["0"], [""], ["  "], ["Ottawa", "0"], ["Ottawa"]].map((answers) => [answers] as const))(
     "cancelar, dejar vacío o terminar la entrada no guarda: %j", async (answers) => {
       const { context, store, weather } = createActionContext(answers);
       await addCity(context);

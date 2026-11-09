@@ -8,7 +8,8 @@ describe("getForecast", () => {
     const { context, io, store, weather } = createActionContext(["2"], { ...savedConfig(), temperatureUnit: unit });
     const previous = context.config;
     await getForecast(context);
-    expect(weather.getForecast).toHaveBeenCalledExactlyOnceWith(madrid, unit);
+    expect(weather.getForecast).toHaveBeenCalledTimes(1);
+    expect(weather.getForecast).toHaveBeenCalledWith(madrid, unit);
     expect(weather.getWeather).not.toHaveBeenCalled();
     expect(context.config).toBe(previous);
     expect(store.saves).toHaveLength(0);
@@ -26,7 +27,7 @@ describe("getForecast", () => {
     expect(weather.getForecast).not.toHaveBeenCalled();
   });
 
-  test.each([[], ["0"], ["abc", "99", "0"]])("cancelar la selección no consulta: %j", async (answers) => {
+  test.each([[], ["0"], ["abc", "99", "0"]].map((answers) => [answers] as const))("cancelar la selección no consulta: %j", async (answers) => {
     const { context, store, weather } = createActionContext(answers, savedConfig());
     await getForecast(context);
     expect(weather.getForecast).not.toHaveBeenCalled();

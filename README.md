@@ -26,14 +26,14 @@ src/
 ├── utils/           # Formatos, constantes, colores y validaciones
 └── index.ts         # Punto de entrada y conexión de dependencias
 
-test/                # Misma estructura de directorios que src/
-├── actions/         # Reservado para pruebas independientes de acciones
-├── presentation/    # Menú (incluidas las acciones), salida y terminal
-├── storage/         # Persistencia y rutas de configuración
-├── types/           # Reservado para pruebas de contratos
-├── api/             # Cliente Open-Meteo con respuestas simuladas
-├── utils/           # Colores y validaciones
-├── build.test.ts    # Bloqueo de compilación ante errores
+test/                # Un archivo .test.ts por cada archivo .ts de src/
+├── actions/         # Pruebas directas de las siete acciones
+├── presentation/    # Entrada, menú, salida y terminal
+├── storage/         # Ciudades, ajustes y configuración persistente
+├── types/           # Contratos de tipos comprobados por TypeScript
+├── api/             # Cliente, geocoding, HTTP y clima/pronóstico
+├── utils/           # Colores, formatos, constantes y validaciones
+├── index.test.ts    # Arranque, correspondencia de archivos y bloqueo de compilación
 ├── fixtures.ts      # Datos de prueba compartidos
 └── helpers.ts       # Auxiliares compartidos
 ```
@@ -146,7 +146,9 @@ bun run test
 bun run test:coverage
 ```
 
-Todas las pruebas, fixtures y auxiliares están en `test/` y utilizan `bun:test`, sin dependencias adicionales. Sus subdirectorios reflejan los de `src/`; las acciones se prueban a través de `presentation/menu.test.ts`, y `actions/` y `types/` conservan un `.gitkeep` mientras no tengan pruebas independientes. Bun descubre las pruebas de todos los subdirectorios automáticamente; `bun test` también permite ejecutarlas directamente.
+Todas las pruebas, fixtures y auxiliares están en `test/` y utilizan `bun:test`, sin dependencias adicionales. Cada módulo tiene su archivo correspondiente: por ejemplo, `src/actions/addCity.ts` → `test/actions/addCity.test.ts`. Una prueba en `test/index.test.ts` comprueba esta correspondencia para detectar archivos sin pruebas y pruebas sin módulo correspondiente. Solo `fixtures.ts` y `helpers.ts` se añaden como soporte compartido. Bun descubre las pruebas de todos los subdirectorios automáticamente; `bun test` también permite ejecutarlas directamente.
+
+Las siete acciones tienen pruebas directas de sus resultados, cancelaciones, validaciones y errores, además de conservar las pruebas de integración del menú. Los archivos de `types/` no contienen lógica ejecutable: sus pruebas utilizan `expectTypeOf` para verificar los contratos válidos e inválidos durante `bun check`. Ejecutar solo `bun test` no sustituye esa comprobación de tipos; `bun run build` exige ambas comprobaciones.
 
 Las pruebas cubren las APIs con respuestas simuladas, las validaciones, la persistencia, las rutas de configuración, el menú y la entrada de consola. También verifican que ciudades y ajustes compartan los datos sin sobrescribirse, que los errores de guardado no alteren el estado y que los archivos temporales se limpien. No necesitan conexión a Internet ni modifican tu configuración habitual.
 
