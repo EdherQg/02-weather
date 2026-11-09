@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
-import { createColors } from "../src/colors.ts";
-import { cityLabel, formatForecast, formatWeather, weatherDescription } from "../src/presentation.ts";
+import { formatForecast, formatWeather } from "../src/presentation/output.ts";
+import { createColors } from "../src/utils/colors.ts";
+import { cityLabel, weatherDescription } from "../src/utils/format.ts";
 import { currentWeather, ottawa, weeklyForecast } from "./fixtures.ts";
 
 describe("presentación", () => {

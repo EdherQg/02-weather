@@ -2,8 +2,11 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { ConfigStore, createDefaultConfig, isConfig } from "../src/config.ts";
-import { ottawa, savedConfig } from "./fixtures.ts";
+import { deleteCity, saveCity, saveDefaultCity } from "../src/storage/citiesStorage.ts";
+import { ConfigStore, createDefaultConfig, isConfig } from "../src/storage/configStore.ts";
+import { saveTemperatureUnit } from "../src/storage/settingsStorage.ts";
+import type { ConfigState } from "../src/types/AppConfig.ts";
+import { madrid, ottawa, savedConfig } from "./fixtures.ts";
 
 describe("configuración persistente", () => {
   let directory: string;
@@ -50,6 +53,35 @@ describe("configuración persistente", () => {
   test("rechaza archivos con un esquema no válido", async () => {
     await Bun.write(store.path, JSON.stringify({ cities: [] }));
     await expect(store.load()).rejects.toThrow("no es válida");
+  });
+
+  test("ciudades y ajustes comparten el mismo archivo sin sobrescribir cambios anteriores", async () => {
+    const state: ConfigState = { config: await store.load(), store };
+    await saveCity(state, ottawa);
+    await saveTemperatureUnit(state, "fahrenheit");
+    await saveCity(state, madrid);
+    await saveDefaultCity(state, madrid.id);
+
+    expect(await new ConfigStore(store.path).load()).toEqual({
+      ...savedConfig(), defaultCityId: madrid.id, temperatureUnit: "fahrenheit",
+    });
+    await deleteCity(state, madrid.id);
+    expect(state.config).toEqual({ ...savedConfig([ottawa]), temperatureUnit: "fahrenheit" });
+    expect(await Bun.file(store.path).json()).toEqual(state.config);
+
+    await deleteCity(state, ottawa.id);
+    expect(await store.load()).toEqual({ ...createDefaultConfig(), temperatureUnit: "fahrenheit" });
+  });
+
+  test("un cambio inválido no reemplaza el estado compartido ni los datos del archivo", async () => {
+    await store.save(savedConfig());
+    const state: ConfigState = { config: await store.load(), store };
+    const previous = state.config;
+
+    await expect(saveDefaultCity(state, 999)).rejects.toThrow("no es válida");
+    await expect(saveCity(state, ottawa)).rejects.toThrow("no es válida");
+    expect(state.config).toBe(previous);
+    expect(await store.load()).toEqual(savedConfig());
   });
 });
 

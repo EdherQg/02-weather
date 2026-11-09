@@ -2,16 +2,17 @@ import { randomUUID } from "node:crypto";
 import { mkdir, rename, unlink } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
-import type { AppConfig } from "./types.ts";
-import { isCity, isRecord } from "./validation.ts";
-
-export interface ConfigRepository {
-  load(): Promise<AppConfig>;
-  save(config: AppConfig): Promise<void>;
-}
+import type { AppConfig, ConfigRepository, ConfigState } from "../types/AppConfig.ts";
+import { isCity, isRecord } from "../utils/validation.ts";
 
 export function createDefaultConfig(): AppConfig {
   return { version: 1, cities: [], defaultCityId: null, temperatureUnit: "celsius" };
+}
+
+export async function persistConfig(state: ConfigState, config: AppConfig): Promise<void> {
+  await state.store.save(config);
+  // Keep the shared in-memory state unchanged if writing to disk fails.
+  state.config = config;
 }
 
 export function getConfigPath(): string {

@@ -1,10 +1,13 @@
 import { describe, expect, mock, test } from "bun:test";
-import type { WeatherService } from "../src/api.ts";
-import { WeatherApp } from "../src/cli.ts";
-import { createColors, plainColors, type Colors } from "../src/colors.ts";
-import { createDefaultConfig, type ConfigRepository } from "../src/config.ts";
-import type { ConsoleIO } from "../src/terminal.ts";
-import type { AppConfig, City, TemperatureUnit } from "../src/types.ts";
+import { WeatherApp } from "../src/presentation/menu.ts";
+import { createDefaultConfig } from "../src/storage/configStore.ts";
+import type { AppConfig, ConfigRepository } from "../src/types/AppConfig.ts";
+import type { City } from "../src/types/City.ts";
+import type { Colors } from "../src/types/Colors.ts";
+import type { ConsoleIO } from "../src/types/ConsoleIO.ts";
+import type { TemperatureUnit } from "../src/types/Weather.ts";
+import type { WeatherService } from "../src/types/WeatherService.ts";
+import { createColors, plainColors } from "../src/utils/colors.ts";
 import { currentWeather, madrid, ottawa, savedConfig, weeklyForecast } from "./fixtures.ts";
 
 class ScriptedIO implements ConsoleIO {
@@ -129,6 +132,22 @@ describe("menú Weather CLI", () => {
     expect(io.text).not.toContain("Ciudad guardada:");
     expect(store.config.cities).toEqual([]);
     expect(weather.getWeather).not.toHaveBeenCalled();
+  });
+
+  test.each([
+    ["ajustes", ["8", "2", "1", "9"], "Temperatura configurada en"],
+    ["ciudad default", ["5", "2", "1", "9"], "\n  Ciudad default:"],
+    ["eliminación", ["4", "1", "s", "1", "9"], "Ciudad eliminada:"],
+  ] as const)("un fallo de persistencia en %s conserva el estado compartido", async (_name, answers, confirmation) => {
+    const { app, io, store, weather } = setup([...answers], savedConfig());
+    store.save = async () => { throw new Error("Sin permisos para guardar"); };
+    await app.run();
+
+    expect(io.text).toContain("Sin permisos para guardar");
+    expect(io.text).not.toContain(confirmation);
+    expect(weather.getWeather).toHaveBeenCalledWith(ottawa, "celsius");
+    expect(store.config).toEqual(savedConfig());
+    expect(io.text).toContain("Ajustes (°C)");
   });
 
   test("muestra los resultados disponibles aunque falle una ciudad", async () => {

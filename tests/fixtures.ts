@@ -1,4 +1,6 @@
-import type { AppConfig, City, Forecast, Weather } from "../src/types.ts";
+import type { AppConfig } from "../src/types/AppConfig.ts";
+import type { City } from "../src/types/City.ts";
+import type { Forecast, Weather } from "../src/types/Weather.ts";
 
 export const ottawa: City = {
   id: 6094817,

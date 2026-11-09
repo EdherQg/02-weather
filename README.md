@@ -14,6 +14,23 @@ Aplicación de consola para consultar el clima actual y el pronóstico de tus ci
 - Bun.js
 - OpenMeteo
 
+## Estructura del proyecto
+
+```text
+src/
+├── actions/         # Clima, pronóstico, ciudades y ajustes
+├── presentation/    # Menú, entrada, salida y terminal
+├── storage/         # Ciudades y preferencias sobre un único config.json
+├── types/           # Tipos y contratos compartidos
+├── api/             # Geocoding, clima y cliente HTTP compartido
+├── utils/           # Formatos, constantes, colores y validaciones
+└── index.ts         # Punto de entrada y conexión de dependencias
+```
+
+`presentation/menu.ts` coordina las acciones sin implementar su lógica. Las acciones utilizan los contratos de `types/`, lo que permite simular la API, la consola y la persistencia en las pruebas. `actions/listCities.ts` conserva la opción de mostrar todas las ciudades con su clima actual.
+
+`storage/citiesStorage.ts` y `storage/settingsStorage.ts` comparten estado y delegan las escrituras a `storage/configStore.ts`. Se mantiene el formato y la ruta de los datos existentes, con escrituras atómicas y actualización del estado en memoria solo después de guardar correctamente.
+
 ## Ejemplo de petición http:
 
 1. Paso 1: Geocoding API.
@@ -117,7 +134,7 @@ bun check
 bun test
 ```
 
-Las pruebas cubren las APIs con respuestas simuladas, la persistencia, el menú y la entrada de consola. No necesitan conexión a Internet ni modifican tu configuración habitual.
+Las pruebas cubren las APIs con respuestas simuladas, la persistencia, el menú y la entrada de consola. También verifican que ciudades y ajustes compartan los datos sin sobrescribirse y que los errores de guardado no alteren el estado. No necesitan conexión a Internet ni modifican tu configuración habitual.
 
 El pronóstico se prueba desde mañana, con cambios de mes y año, fechas y datos incompletos, unidades Celsius/Fahrenheit, colores, cancelaciones y errores. No se han añadido dependencias para esta funcionalidad.
 

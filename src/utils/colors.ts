@@ -1,9 +1,4 @@
-export interface Colors {
-  cyan(text: string): string;
-  yellow(text: string): string;
-  green(text: string): string;
-  red(text: string): string;
-}
+import type { Colors } from "../types/Colors.ts";
 
 export function supportsColor(
   isTTY: boolean | undefined = process.stdout.isTTY,

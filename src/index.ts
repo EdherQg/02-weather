@@ -1,8 +1,8 @@
-import { OpenMeteoClient } from "./src/api.ts";
-import { WeatherApp } from "./src/cli.ts";
-import { createColors } from "./src/colors.ts";
-import { ConfigStore } from "./src/config.ts";
-import { Terminal } from "./src/terminal.ts";
+import { OpenMeteoClient } from "./api/client.ts";
+import { WeatherApp } from "./presentation/menu.ts";
+import { Terminal } from "./presentation/terminal.ts";
+import { ConfigStore } from "./storage/configStore.ts";
+import { createColors } from "./utils/colors.ts";
 
 if (import.meta.main) {
   const terminal = new Terminal();

@@ -9,7 +9,7 @@ test("la CLI procesa varias líneas por stdin y conserva ajustes al reiniciar", 
 
   async function run(input: string, env: Record<string, string> = {}) {
     const child = Bun.spawn({
-      cmd: [process.execPath, "index.ts"],
+      cmd: [process.execPath, "src/index.ts"],
       cwd: resolve(import.meta.dir, ".."),
       env: { ...process.env, ...env, WEATHER_CLI_CONFIG: configPath },
       stdin: new Blob([input]),

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { OpenMeteoClient } from "../src/api.ts";
+import { OpenMeteoClient } from "../src/api/client.ts";
 import { currentWeather, ottawa, weeklyForecast } from "./fixtures.ts";
 
 const forecast = {

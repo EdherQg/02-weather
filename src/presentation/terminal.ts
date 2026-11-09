@@ -1,9 +1,5 @@
 import { createInterface, type Interface } from "node:readline";
-
-export interface ConsoleIO {
-  write(message: string): void;
-  ask(question: string): Promise<string | null>;
-}
+import type { ConsoleIO } from "../types/ConsoleIO.ts";
 
 export class Terminal implements ConsoleIO {
   private readonly readline: Interface;
