@@ -33,9 +33,10 @@ test("la CLI procesa varias líneas por stdin y conserva ajustes al reiniciar", 
   try {
     expect(await run("8\n2\n9\n")).toContain("Temperatura configurada en °F");
     expect((await Bun.file(configPath).json()).temperatureUnit).toBe("fahrenheit");
-    const output = await run("1\n9\n");
+    const output = await run("1\n6\n9\n");
     expect(output).toContain("Ajustes (°F)");
     expect(output).toContain("No hay ciudades guardadas");
+    expect(output).toContain("6. Pronóstico de 7 días");
     expect(output).toContain("¡Hasta pronto!");
     expect(await run("8\n1\n9\n", { NO_COLOR: "1" })).toContain("Temperatura configurada en °C");
   } finally {

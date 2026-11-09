@@ -25,3 +25,15 @@ export interface Weather {
   time: string;
   timezone: string;
 }
+
+export interface ForecastDay {
+  date: string;
+  temperatureMin: number;
+  temperatureMax: number;
+  weatherCode: number;
+}
+
+export interface Forecast {
+  days: ForecastDay[];
+  timezone: string;
+}

@@ -1,7 +1,7 @@
 import type { WeatherService } from "./api.ts";
 import { plainColors, type Colors } from "./colors.ts";
 import { createDefaultConfig, type ConfigRepository } from "./config.ts";
-import { cityLabel, formatWeather, unitLabel } from "./presentation.ts";
+import { cityLabel, formatForecast, formatWeather, unitLabel } from "./presentation.ts";
 import type { ConsoleIO } from "./terminal.ts";
 import type { AppConfig, City } from "./types.ts";
 
@@ -30,6 +30,7 @@ export class WeatherApp {
         "  3. Buscar y agregar ciudad",
         "  4. Eliminar ciudad",
         "  5. Establecer ciudad default",
+        "  6. Pronóstico de 7 días",
         `  8. Ajustes (${unitLabel(this.config.temperatureUnit)})`,
         "  9. Salir",
         border,
@@ -45,8 +46,9 @@ export class WeatherApp {
           case "3": await this.addCity(); break;
           case "4": await this.removeCity(); break;
           case "5": await this.setDefaultCity(); break;
+          case "6": await this.showForecast(); break;
           case "8": await this.changeSettings(); break;
-          default: this.io.write(this.colors.red("\n  Opción no válida. Selecciona 1, 2, 3, 4, 5, 8 o 9."));
+          default: this.io.write(this.colors.red("\n  Opción no válida. Selecciona 1, 2, 3, 4, 5, 6, 8 o 9."));
         }
       } catch (error) {
         this.io.write(this.colors.red(`\n  No se pudo completar la operación: ${error instanceof Error ? error.message : String(error)}`));
@@ -91,6 +93,17 @@ export class WeatherApp {
         this.io.write(this.colors.red(`\n  ${cityLabel(city)}: ${error instanceof Error ? error.message : "No se pudo consultar el clima."}`));
       }
     }
+  }
+
+  private async showForecast(): Promise<void> {
+    if (!this.hasCities()) return;
+    this.io.write(this.colors.cyan("\n  Selecciona la ciudad para el pronóstico de 7 días:"));
+    const city = await this.chooseSavedCity();
+    if (!city) return;
+
+    this.io.write(`\n  Consultando el pronóstico de ${cityLabel(city)}...`);
+    const result = await this.weather.getForecast(city, this.config.temperatureUnit);
+    this.io.write(formatForecast(city, result, this.config.temperatureUnit, city.id === this.config.defaultCityId, this.colors));
   }
 
   private async addCity(): Promise<void> {

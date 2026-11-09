@@ -5,7 +5,7 @@ import { createColors, plainColors, type Colors } from "../src/colors.ts";
 import { createDefaultConfig, type ConfigRepository } from "../src/config.ts";
 import type { ConsoleIO } from "../src/terminal.ts";
 import type { AppConfig, City, TemperatureUnit } from "../src/types.ts";
-import { currentWeather, madrid, ottawa, savedConfig } from "./fixtures.ts";
+import { currentWeather, madrid, ottawa, savedConfig, weeklyForecast } from "./fixtures.ts";
 
 class ScriptedIO implements ConsoleIO {
   readonly output: string[] = [];
@@ -40,6 +40,7 @@ function setup(
   const weather = {
     searchCities: mock(async (_name: string) => [ottawa]),
     getWeather: mock(async (_city: City, _unit: TemperatureUnit) => currentWeather),
+    getForecast: mock(async (_city: City, _unit: TemperatureUnit) => weeklyForecast),
     ...overrides,
   };
   return { io, store, weather, app: new WeatherApp(io, weather, store, colors) };
@@ -47,13 +48,15 @@ function setup(
 
 describe("menú Weather CLI", () => {
   test("muestra el menú del README y orienta al usuario cuando no hay ciudades", async () => {
-    const { app, io, weather } = setup(["1", "2", "4", "5", "9"]);
+    const { app, io, weather } = setup(["1", "2", "4", "5", "6", "9"]);
     await app.run();
     expect(io.text).toContain("WEATHER CLI");
     expect(io.text).toContain("Clima de todas las ciudades (0)");
     expect(io.text).toContain("Ajustes (°C)");
+    expect(io.text).toContain("6. Pronóstico de 7 días");
     expect(io.text).toContain("Usa la opción 3");
     expect(weather.getWeather).not.toHaveBeenCalled();
+    expect(weather.getForecast).not.toHaveBeenCalled();
   });
 
   test("busca, guarda y consulta una ciudad; la primera es default", async () => {
@@ -193,7 +196,7 @@ describe("menú Weather CLI", () => {
     }, createColors(true));
     await app.run();
 
-    expect(io.text).toContain("\x1b[31m\n  Opción no válida. Selecciona 1, 2, 3, 4, 5, 8 o 9.\x1b[39m");
+    expect(io.text).toContain("\x1b[31m\n  Opción no válida. Selecciona 1, 2, 3, 4, 5, 6, 8 o 9.\x1b[39m");
     expect(io.text).toContain("\x1b[31m\n  Escribe el nombre de una ciudad.\x1b[39m");
     expect(io.text).toContain("\x1b[31m  Opción no válida. Elige entre 1 y 1, o 0 para cancelar.\x1b[39m");
     expect(io.text).toContain("\x1b[31m\n  No se pudo completar la operación: Sin conexión\x1b[39m");
@@ -212,5 +215,71 @@ describe("menú Weather CLI", () => {
     const result = io.output.find((message) => message.includes("  Temperatura:"));
     expect(result).toContain("Temperatura: \x1b[33m7,4 °C\x1b[39m");
     expect(result).not.toContain("\x1b[31m");
+  });
+
+  test("consulta el pronóstico de la ciudad seleccionada sin modificar la configuración", async () => {
+    const { app, io, store, weather } = setup(["6", "2", "9"], savedConfig());
+    await app.run();
+
+    expect(weather.getForecast).toHaveBeenCalledTimes(1);
+    expect(weather.getForecast).toHaveBeenCalledWith(madrid, "celsius");
+    expect(weather.getWeather).not.toHaveBeenCalled();
+    expect(io.text).toContain("Selecciona la ciudad para el pronóstico de 7 días");
+    expect(io.text).toContain("Consultando el pronóstico de Madrid, Comunidad de Madrid, España...");
+    expect(io.text).toContain("Pronóstico de 7 días (desde mañana)");
+    expect(io.text).toContain("29/10/2026");
+    expect(io.text).toContain("04/11/2026");
+    expect(io.text).not.toContain("28/10/2026");
+    expect(store.saves).toHaveLength(0);
+    expect(store.config).toEqual(savedConfig());
+  });
+
+  test.each(["celsius", "fahrenheit"] as const)("el pronóstico respeta la unidad %s y marca la ciudad default", async (unit) => {
+    const { app, io, weather } = setup(["6", "1", "9"], { ...savedConfig(), temperatureUnit: unit });
+    await app.run();
+
+    expect(weather.getForecast).toHaveBeenCalledWith(ottawa, unit);
+    expect(io.text).toContain("Ottawa, Ontario, Canadá [default]");
+    expect(io.text).toContain(`Mínima: -2,0 ${unit === "celsius" ? "°C" : "°F"}`);
+  });
+
+  test.each([
+    ["cancelación", ["6", "0", "9"]],
+    ["fin de entrada", ["6"]],
+    ["selección inválida y cancelación", ["6", "abc", "99", "0", "9"]],
+  ] as const)("no consulta ni guarda al abandonar el pronóstico: %s", async (_name, answers) => {
+    const { app, io, store, weather } = setup([...answers], savedConfig());
+    await app.run();
+
+    expect(weather.getForecast).not.toHaveBeenCalled();
+    expect(store.saves).toHaveLength(0);
+    expect(io.text).toContain("¡Hasta pronto!");
+  });
+
+  test("un error de pronóstico vuelve al menú y permite consultar el clima actual", async () => {
+    const { app, io, store, weather } = setup(["6", "1", "1", "9"], savedConfig(), {
+      getForecast: async () => { throw new Error("No hay pronóstico disponible"); },
+    }, createColors(true));
+    await app.run();
+
+    expect(io.text).toContain("\x1b[31m\n  No se pudo completar la operación: No hay pronóstico disponible\x1b[39m");
+    expect(weather.getWeather).toHaveBeenCalledWith(ottawa, "celsius");
+    expect(io.text).toContain("Temperatura: \x1b[33m7,4 °C\x1b[39m");
+    expect(io.text).toContain("¡Hasta pronto!");
+    expect(store.saves).toHaveLength(0);
+  });
+
+  test("mantiene los colores del pronóstico y las preguntas sin cambiar su contenido", async () => {
+    const colored = setup(["6", "1", "9"], savedConfig(), {}, createColors(true));
+    const plain = setup(["6", "1", "9"], savedConfig());
+    await colored.app.run();
+    await plain.app.run();
+
+    expect(colored.io.text).toContain("\x1b[36m  Pronóstico de 7 días (desde mañana)\x1b[39m");
+    expect(colored.io.text).toContain("Mínima: \x1b[33m-2,0 °C\x1b[39m");
+    expect(colored.io.text).toContain("Máxima: \x1b[33m7,0 °C\x1b[39m");
+    for (const question of colored.io.questions) expect(question).toStartWith("\x1b[36m");
+    expect(Bun.stripANSI(colored.io.text)).toBe(plain.io.text);
+    expect(plain.io.text).not.toContain("\x1b[");
   });
 });

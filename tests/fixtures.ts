@@ -1,4 +1,4 @@
-import type { AppConfig, City, Weather } from "../src/types.ts";
+import type { AppConfig, City, Forecast, Weather } from "../src/types.ts";
 
 export const ottawa: City = {
   id: 6094817,
@@ -26,6 +26,12 @@ export const currentWeather: Weather = {
   weatherCode: 2,
   time: "2026-10-28T15:00",
   timezone: "America/Toronto",
+};
+
+export const weeklyForecast: Forecast = {
+  timezone: "America/Toronto",
+  days: ["2026-10-29", "2026-10-30", "2026-10-31", "2026-11-01", "2026-11-02", "2026-11-03", "2026-11-04"]
+    .map((date, index) => ({ date, temperatureMin: index - 2, temperatureMax: index + 7, weatherCode: index === 0 ? 0 : 3 })),
 };
 
 export function savedConfig(cities: City[] = [ottawa, madrid]): AppConfig {

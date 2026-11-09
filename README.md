@@ -1,12 +1,13 @@
 ## Weather CLI APP
 
-Aplicación de consola para consultar el clima de tus ciudades con Bun y Open-Meteo. Guarda tus ciudades, una ciudad por defecto y la unidad de temperatura. También se puede compilar como binario ejecutable.
+Aplicación de consola para consultar el clima actual y el pronóstico de tus ciudades con Bun y Open-Meteo. Guarda tus ciudades, una ciudad por defecto y la unidad de temperatura. También se puede compilar como binario ejecutable.
 
 ### Opciones:
 
 - Ingresar el nombre de una ciudad.
 - Guardar la ciudad por defecto.
 - Registrar varias otras ciudades para buscar el clima en esas otras ciudades.
+- Consultar el pronóstico de los próximos siete días, desde mañana.
 
 ## Stack
 
@@ -44,6 +45,7 @@ Esta es la apariencia que deseamos crear
   3. Buscar y agregar ciudad
   4. Eliminar ciudad
   5. Establecer ciudad default
+  6. Pronóstico de 7 días
   8. Ajustes (°C)
   9. Salir
 ════════════════════════════════════════
@@ -57,6 +59,7 @@ Esta es la apariencia que deseamos crear
 - **2. Clima de todas las ciudades:** consulta las ciudades guardadas en paralelo. Si una falla, las demás se siguen mostrando.
 - **4. Eliminar ciudad:** selecciona una y confirma con `s`. Si eliminas la default, la primera ciudad restante toma su lugar.
 - **5. Establecer ciudad default:** selecciona una ciudad guardada.
+- **6. Pronóstico de 7 días:** selecciona una ciudad guardada para ver su pronóstico desde mañana y durante siete días, sin incluir hoy. Cada día muestra fecha, condición meteorológica, temperatura mínima y máxima en la unidad configurada. Puedes cancelar con `0`.
 - **8. Ajustes:** elige Celsius (`°C`) o Fahrenheit (`°F`). El viento se muestra siempre en km/h.
 - **9. Salir:** cierra la aplicación. También puedes usar `Ctrl+C`.
 
@@ -76,6 +79,8 @@ El clima incluye temperatura, sensación térmica, descripción en español, hum
   Fuente: Open-Meteo
 ```
 
+El pronóstico usa el calendario local de la ciudad consultada, no la fecha del equipo donde ejecutas la app. También muestra la zona horaria y la fuente. Consultarlo no cambia tus ciudades ni ajustes.
+
 ## Datos guardados
 
 La configuración se guarda como JSON fuera del proyecto, por lo que también funciona al mover el ejecutable:
@@ -89,12 +94,18 @@ Puedes elegir otro archivo con la variable de entorno `WEATHER_CLI_CONFIG`. Se c
 ## APIs utilizadas
 
 1. **Geocoding:** busca hasta cinco coincidencias en español y obtiene el identificador, nombre, región, país, latitud y longitud.
-2. **Forecast:** utiliza las coordenadas guardadas para consultar las condiciones actuales en la unidad elegida, con `timezone=auto`.
+2. **Forecast:** utiliza las coordenadas guardadas para consultar las condiciones actuales o el pronóstico diario en la unidad elegida, con `timezone=auto`.
 
 Ejemplo de la consulta completa del clima:
 
 ```text
 https://api.open-meteo.com/v1/forecast?latitude=45.41117&longitude=-75.69812&current=temperature_2m,apparent_temperature,relative_humidity_2m,weather_code,wind_speed_10m&temperature_unit=celsius&wind_speed_unit=kmh&timezone=auto
+```
+
+Para el pronóstico se solicitan ocho días y se descarta el primero (hoy en la ciudad), conservando exactamente los siete siguientes. Se validan las fechas consecutivas y los datos de cada día; si la respuesta está incompleta, se informa del error sin mostrar un pronóstico parcial.
+
+```text
+https://api.open-meteo.com/v1/forecast?latitude=45.41117&longitude=-75.69812&daily=weather_code,temperature_2m_min,temperature_2m_max&temperature_unit=celsius&timezone=auto&forecast_days=8
 ```
 
 Las consultas tienen un límite de espera de 10 segundos. Los errores de red o del servicio se muestran sin cerrar el menú.
@@ -107,6 +118,8 @@ bun test
 ```
 
 Las pruebas cubren las APIs con respuestas simuladas, la persistencia, el menú y la entrada de consola. No necesitan conexión a Internet ni modifican tu configuración habitual.
+
+El pronóstico se prueba desde mañana, con cambios de mes y año, fechas y datos incompletos, unidades Celsius/Fahrenheit, colores, cancelaciones y errores. No se han añadido dependencias para esta funcionalidad.
 
 ## Generar el ejecutable
 

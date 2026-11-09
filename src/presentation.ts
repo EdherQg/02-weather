@@ -1,5 +1,5 @@
 import { plainColors, type Colors } from "./colors.ts";
-import type { City, TemperatureUnit, Weather } from "./types.ts";
+import type { City, Forecast, TemperatureUnit, Weather } from "./types.ts";
 
 const conditions: Record<number, string> = {
   0: "Cielo despejado",
@@ -33,6 +33,10 @@ const conditions: Record<number, string> = {
 };
 
 const numbers = new Intl.NumberFormat("es", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+// API daily dates are already local calendar dates, not timestamps to convert.
+const dates = new Intl.DateTimeFormat("es", {
+  weekday: "long", day: "2-digit", month: "2-digit", year: "numeric", timeZone: "UTC",
+});
 
 export function cityLabel(city: City): string {
   return [...new Set([city.name, city.region, city.country].filter(Boolean))].join(", ");
@@ -61,6 +65,26 @@ export function formatWeather(
     `  Sensación térmica: ${colors.yellow(`${numbers.format(weather.apparentTemperature)} ${symbol}`)}`,
     `  Humedad: ${weather.humidity} % | Viento: ${numbers.format(weather.windSpeed)} km/h`,
     `  Actualizado: ${weather.time.replace("T", " ")} (${weather.timezone})`,
+    "  Fuente: Open-Meteo",
+  ].join("\n");
+}
+
+export function formatForecast(
+  city: City,
+  forecast: Forecast,
+  unit: TemperatureUnit,
+  isDefault: boolean,
+  colors: Colors = plainColors,
+): string {
+  const symbol = unitLabel(unit);
+  return [
+    `\n  ${cityLabel(city)}${isDefault ? " [default]" : ""}`,
+    colors.cyan("  Pronóstico de 7 días (desde mañana)"),
+    `  Zona horaria: ${forecast.timezone}`,
+    ...forecast.days.map((day) => [
+      `  ${dates.format(new Date(`${day.date}T00:00:00Z`))}: ${weatherDescription(day.weatherCode)}`,
+      `    Mínima: ${colors.yellow(`${numbers.format(day.temperatureMin)} ${symbol}`)} | Máxima: ${colors.yellow(`${numbers.format(day.temperatureMax)} ${symbol}`)}`,
+    ].join("\n")),
     "  Fuente: Open-Meteo",
   ].join("\n");
 }

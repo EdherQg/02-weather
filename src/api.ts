@@ -1,9 +1,10 @@
-import type { City, TemperatureUnit, Weather } from "./types.ts";
+import type { City, Forecast, ForecastDay, TemperatureUnit, Weather } from "./types.ts";
 import { isCity, isFiniteNumber, isRecord } from "./validation.ts";
 
 export interface WeatherService {
   searchCities(name: string): Promise<City[]>;
   getWeather(city: City, unit: TemperatureUnit): Promise<Weather>;
+  getForecast(city: City, unit: TemperatureUnit): Promise<Forecast>;
 }
 
 export type Fetcher = (url: URL, options: RequestInit) => Promise<Response>;
@@ -74,6 +75,50 @@ export class OpenMeteoClient implements WeatherService {
       time: current.time,
       timezone: data.timezone,
     };
+  }
+
+  async getForecast(city: City, unit: TemperatureUnit): Promise<Forecast> {
+    const url = new URL("https://api.open-meteo.com/v1/forecast");
+    url.search = new URLSearchParams({
+      latitude: String(city.latitude),
+      longitude: String(city.longitude),
+      daily: "weather_code,temperature_2m_min,temperature_2m_max",
+      temperature_unit: unit,
+      timezone: "auto",
+      forecast_days: "8",
+    }).toString();
+
+    const data = await this.getJson(url);
+    if (!isRecord(data) || !isRecord(data.daily) || typeof data.timezone !== "string" || !data.timezone.trim()) {
+      throw new Error("La respuesta del pronóstico no es válida.");
+    }
+    const { time, temperature_2m_min: minimums, temperature_2m_max: maximums, weather_code: codes } = data.daily;
+    if (!Array.isArray(time) || time.length !== 8
+      || !Array.isArray(minimums) || minimums.length !== time.length
+      || !Array.isArray(maximums) || maximums.length !== time.length
+      || !Array.isArray(codes) || codes.length !== time.length) {
+      throw new Error("Open-Meteo no devolvió los 7 días de pronóstico esperados.");
+    }
+
+    const days = time.map((date: unknown, index): ForecastDay => {
+      if (typeof date !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+        throw new Error("Open-Meteo devolvió una fecha de pronóstico no válida.");
+      }
+      const parsedDate = new Date(`${date}T00:00:00Z`);
+      const temperatureMin: unknown = minimums[index];
+      const temperatureMax: unknown = maximums[index];
+      const weatherCode: unknown = codes[index];
+      if (!Number.isFinite(parsedDate.getTime()) || parsedDate.toISOString().slice(0, 10) !== date
+        || (index > 0 && parsedDate.getTime() - Date.parse(`${time[index - 1]}T00:00:00Z`) !== 86_400_000)
+        || !isFiniteNumber(temperatureMin) || !isFiniteNumber(temperatureMax) || temperatureMin > temperatureMax
+        || !isFiniteNumber(weatherCode) || !Number.isInteger(weatherCode)) {
+        throw new Error("Open-Meteo devolvió datos de pronóstico no válidos.");
+      }
+      return { date, temperatureMin, temperatureMax, weatherCode };
+    });
+
+    // With timezone=auto, the first daily entry is today in the city's timezone.
+    return { days: days.slice(1), timezone: data.timezone };
   }
 
   private async getJson(url: URL): Promise<unknown> {
