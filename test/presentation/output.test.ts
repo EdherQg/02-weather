@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import { formatForecast, formatWeather } from "../src/presentation/output.ts";
-import { createColors } from "../src/utils/colors.ts";
-import { cityLabel, weatherDescription } from "../src/utils/format.ts";
-import { currentWeather, ottawa, weeklyForecast } from "./fixtures.ts";
+import { formatForecast, formatWeather } from "../../src/presentation/output.ts";
+import { createColors } from "../../src/utils/colors.ts";
+import { cityLabel, weatherDescription } from "../../src/utils/format.ts";
+import { currentWeather, ottawa, weeklyForecast } from "../fixtures.ts";
 
 describe("presentación", () => {
   test("muestra el clima en español y conserva la hora local de la ciudad", () => {

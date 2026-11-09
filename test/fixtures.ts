@@ -36,6 +36,28 @@ export const weeklyForecast: Forecast = {
     .map((date, index) => ({ date, temperatureMin: index - 2, temperatureMax: index + 7, weatherCode: index === 0 ? 0 : 3 })),
 };
 
+export const currentWeatherResponse = {
+  timezone: currentWeather.timezone,
+  current: {
+    temperature_2m: currentWeather.temperature,
+    apparent_temperature: currentWeather.apparentTemperature,
+    relative_humidity_2m: currentWeather.humidity,
+    wind_speed_10m: currentWeather.windSpeed,
+    weather_code: currentWeather.weatherCode,
+    time: currentWeather.time,
+  },
+};
+
+export const weeklyForecastResponse = {
+  timezone: weeklyForecast.timezone,
+  daily: {
+    time: ["2026-10-28", ...weeklyForecast.days.map((day) => day.date)],
+    temperature_2m_min: [-99, ...weeklyForecast.days.map((day) => day.temperatureMin)],
+    temperature_2m_max: [99, ...weeklyForecast.days.map((day) => day.temperatureMax)],
+    weather_code: [95, ...weeklyForecast.days.map((day) => day.weatherCode)],
+  },
+};
+
 export function savedConfig(cities: City[] = [ottawa, madrid]): AppConfig {
   return { version: 1, cities, defaultCityId: cities[0]?.id ?? null, temperatureUnit: "celsius" };
 }

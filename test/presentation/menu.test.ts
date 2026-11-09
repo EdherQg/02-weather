@@ -1,36 +1,11 @@
-import { describe, expect, mock, test } from "bun:test";
-import { WeatherApp } from "../src/presentation/menu.ts";
-import { createDefaultConfig } from "../src/storage/configStore.ts";
-import type { AppConfig, ConfigRepository } from "../src/types/AppConfig.ts";
-import type { City } from "../src/types/City.ts";
-import type { Colors } from "../src/types/Colors.ts";
-import type { ConsoleIO } from "../src/types/ConsoleIO.ts";
-import type { TemperatureUnit } from "../src/types/Weather.ts";
-import type { WeatherService } from "../src/types/WeatherService.ts";
-import { createColors, plainColors } from "../src/utils/colors.ts";
-import { currentWeather, madrid, ottawa, savedConfig, weeklyForecast } from "./fixtures.ts";
-
-class ScriptedIO implements ConsoleIO {
-  readonly output: string[] = [];
-  readonly questions: string[] = [];
-  constructor(private readonly answers: string[]) {}
-  write(message: string): void { this.output.push(message); }
-  async ask(question: string): Promise<string | null> {
-    this.questions.push(question);
-    return this.answers.shift() ?? null;
-  }
-  get text(): string { return this.output.join("\n"); }
-}
-
-class MemoryStore implements ConfigRepository {
-  readonly saves: AppConfig[] = [];
-  constructor(public config: AppConfig) {}
-  async load(): Promise<AppConfig> { return structuredClone(this.config); }
-  async save(config: AppConfig): Promise<void> {
-    this.config = structuredClone(config);
-    this.saves.push(this.config);
-  }
-}
+import { describe, expect, test } from "bun:test";
+import { WeatherApp } from "../../src/presentation/menu.ts";
+import { createDefaultConfig } from "../../src/storage/configStore.ts";
+import type { Colors } from "../../src/types/Colors.ts";
+import type { WeatherService } from "../../src/types/WeatherService.ts";
+import { createColors, plainColors } from "../../src/utils/colors.ts";
+import { currentWeather, madrid, ottawa, savedConfig } from "../fixtures.ts";
+import { createActionContext } from "../helpers.ts";
 
 function setup(
   answers: string[],
@@ -38,14 +13,7 @@ function setup(
   overrides: Partial<WeatherService> = {},
   colors: Colors = plainColors,
 ) {
-  const io = new ScriptedIO(answers);
-  const store = new MemoryStore(config);
-  const weather = {
-    searchCities: mock(async (_name: string) => [ottawa]),
-    getWeather: mock(async (_city: City, _unit: TemperatureUnit) => currentWeather),
-    getForecast: mock(async (_city: City, _unit: TemperatureUnit) => weeklyForecast),
-    ...overrides,
-  };
+  const { io, store, weather } = createActionContext(answers, config, overrides);
   return { io, store, weather, app: new WeatherApp(io, weather, store, colors) };
 }
 
@@ -102,6 +70,22 @@ describe("menú Weather CLI", () => {
     expect(store.config).toEqual(createDefaultConfig());
   });
 
+  test("elegir la ciudad que ya es default no vuelve a guardar", async () => {
+    const { app, io, store } = setup(["5", "1", "9"], savedConfig());
+    await app.run();
+    expect(io.text).toContain("Esa ya es tu ciudad default");
+    expect(store.saves).toHaveLength(0);
+    expect(store.config).toEqual(savedConfig());
+  });
+
+  test("eliminar una ciudad secundaria conserva la default", async () => {
+    const { app, io, store } = setup(["4", "2", "SÍ", "9"], savedConfig());
+    await app.run();
+    expect(store.config).toEqual(savedConfig([ottawa]));
+    expect(store.saves).toHaveLength(1);
+    expect(io.text).not.toContain("Nueva ciudad default");
+  });
+
   test("cancelar selecciones o no confirmar la eliminación no modifica los datos", async () => {
     const { app, store } = setup(["3", "0", "5", "0", "8", "0", "4", "1", "n", "9"], savedConfig());
     await app.run();
@@ -132,6 +116,18 @@ describe("menú Weather CLI", () => {
     expect(io.text).not.toContain("Ciudad guardada:");
     expect(store.config.cities).toEqual([]);
     expect(weather.getWeather).not.toHaveBeenCalled();
+  });
+
+  test("conserva la ciudad guardada aunque falle la consulta posterior del clima", async () => {
+    const { app, io, store } = setup(["3", "Ottawa", "1", "9"], createDefaultConfig(), {
+      getWeather: async () => { throw new Error("Sin conexión"); },
+    });
+    await app.run();
+    expect(store.config).toEqual(savedConfig([ottawa]));
+    expect(store.saves).toHaveLength(1);
+    expect(io.text).toContain("Ciudad guardada: Ottawa");
+    expect(io.text).toContain("Sin conexión");
+    expect(io.text).toContain("¡Hasta pronto!");
   });
 
   test.each([

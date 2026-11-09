@@ -1,28 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import { OpenMeteoClient } from "../src/api/client.ts";
-import { currentWeather, ottawa, weeklyForecast } from "./fixtures.ts";
-
-const forecast = {
-  timezone: currentWeather.timezone,
-  current: {
-    temperature_2m: currentWeather.temperature,
-    apparent_temperature: currentWeather.apparentTemperature,
-    relative_humidity_2m: currentWeather.humidity,
-    wind_speed_10m: currentWeather.windSpeed,
-    weather_code: currentWeather.weatherCode,
-    time: currentWeather.time,
-  },
-};
-
-const weeklyResponse = {
-  timezone: weeklyForecast.timezone,
-  daily: {
-    time: ["2026-10-28", ...weeklyForecast.days.map((day) => day.date)],
-    temperature_2m_min: [-99, ...weeklyForecast.days.map((day) => day.temperatureMin)],
-    temperature_2m_max: [99, ...weeklyForecast.days.map((day) => day.temperatureMax)],
-    weather_code: [95, ...weeklyForecast.days.map((day) => day.weatherCode)],
-  },
-};
+import { OpenMeteoClient } from "../../src/api/client.ts";
+import {
+  currentWeather, currentWeatherResponse as forecast, ottawa,
+  weeklyForecast, weeklyForecastResponse as weeklyResponse,
+} from "../fixtures.ts";
 
 describe("Open-Meteo", () => {
   test("busca coordenadas en español y codifica el nombre de la ciudad", async () => {
@@ -46,6 +27,27 @@ describe("Open-Meteo", () => {
     const client = new OpenMeteoClient(async () => Response.json({ results: [{ ...ottawa, latitude: 999 }] }));
     await expect(client.searchCities(" ")).rejects.toThrow("nombre");
     await expect(client.searchCities("Ottawa")).rejects.toThrow("coordenadas no válidas");
+  });
+
+  test("no realiza peticiones para nombres vacíos", async () => {
+    let requests = 0;
+    const client = new OpenMeteoClient(async () => {
+      requests++;
+      return Response.json({});
+    });
+    await expect(client.searchCities("\t \n")).rejects.toThrow("nombre");
+    expect(requests).toBe(0);
+  });
+
+  test.each([
+    ["respuesta nula", null],
+    ["respuesta en array", []],
+    ["ciudad nula", { results: [null] }],
+    ["ciudad no estructurada", { results: ["Ottawa"] }],
+    ["id ausente", { results: [{ ...ottawa, id: undefined }] }],
+  ])("rechaza coordenadas mal formadas: %s", async (_name, data) => {
+    const client = new OpenMeteoClient(async () => Response.json(data));
+    await expect(client.searchCities("Ottawa")).rejects.toThrow();
   });
 
   test("permite ciudades sin región ni nombre de país", async () => {
@@ -86,6 +88,44 @@ describe("Open-Meteo", () => {
     await expect(client.getWeather(ottawa, "celsius")).rejects.toThrow("datos del clima");
   });
 
+  test.each([
+    ["respuesta nula", null],
+    ["respuesta en array", []],
+    ["sin condiciones actuales", { timezone: forecast.timezone }],
+    ["condiciones nulas", { ...forecast, current: null }],
+    ["condiciones en array", { ...forecast, current: [] }],
+    ["sin zona horaria", { current: forecast.current }],
+  ])("rechaza respuestas de clima inválidas: %s", async (_name, data) => {
+    const client = new OpenMeteoClient(async () => Response.json(data));
+    await expect(client.getWeather(ottawa, "celsius")).rejects.toThrow("respuesta del clima");
+  });
+
+  test.each([
+    ["temperatura nula", { temperature_2m: null }],
+    ["temperatura no numérica", { temperature_2m: "7" }],
+    ["sensación térmica ausente", { apparent_temperature: undefined }],
+    ["humedad negativa", { relative_humidity_2m: -1 }],
+    ["humedad superior al 100 %", { relative_humidity_2m: 101 }],
+    ["viento negativo", { wind_speed_10m: -1 }],
+    ["condición decimal", { weather_code: 1.5 }],
+    ["hora ausente", { time: undefined }],
+    ["hora sin formato ISO", { time: "28/10/2026 15:00" }],
+  ])("rechaza condiciones actuales inválidas: %s", async (_name, current) => {
+    const client = new OpenMeteoClient(async () => Response.json({
+      ...forecast, current: { ...forecast.current, ...current },
+    }));
+    await expect(client.getWeather(ottawa, "celsius")).rejects.toThrow("datos del clima");
+  });
+
+  test("acepta los extremos de humedad y viento cero", async () => {
+    for (const humidity of [0, 100]) {
+      const client = new OpenMeteoClient(async () => Response.json({
+        ...forecast, current: { ...forecast.current, relative_humidity_2m: humidity, wind_speed_10m: 0 },
+      }));
+      expect(await client.getWeather(ottawa, "celsius")).toMatchObject({ humidity, windSpeed: 0 });
+    }
+  });
+
   test("informa de errores HTTP y límites de consultas", async () => {
     for (const status of [404, 429, 503]) {
       const client = new OpenMeteoClient(async () => new Response(null, { status }));
@@ -110,6 +150,8 @@ describe("Open-Meteo", () => {
     await expect(invalidJson.searchCities("Ottawa")).rejects.toThrow("JSON no válida");
     const apiError = new OpenMeteoClient(async () => Response.json({ error: true, reason: "Consulta incorrecta" }));
     await expect(apiError.searchCities("Ottawa")).rejects.toThrow("Consulta incorrecta");
+    const apiErrorWithoutReason = new OpenMeteoClient(async () => Response.json({ error: true }));
+    await expect(apiErrorWithoutReason.searchCities("Ottawa")).rejects.toThrow("consulta no válida");
     const invalidResults = new OpenMeteoClient(async () => Response.json({ results: "incorrecto" }));
     await expect(invalidResults.searchCities("Ottawa")).rejects.toThrow("coordenadas no es válida");
   });

@@ -25,6 +25,17 @@ src/
 ├── api/             # Geocoding, clima y cliente HTTP compartido
 ├── utils/           # Formatos, constantes, colores y validaciones
 └── index.ts         # Punto de entrada y conexión de dependencias
+
+test/                # Misma estructura de directorios que src/
+├── actions/         # Reservado para pruebas independientes de acciones
+├── presentation/    # Menú (incluidas las acciones), salida y terminal
+├── storage/         # Persistencia y rutas de configuración
+├── types/           # Reservado para pruebas de contratos
+├── api/             # Cliente Open-Meteo con respuestas simuladas
+├── utils/           # Colores y validaciones
+├── build.test.ts    # Bloqueo de compilación ante errores
+├── fixtures.ts      # Datos de prueba compartidos
+└── helpers.ts       # Auxiliares compartidos
 ```
 
 `presentation/menu.ts` coordina las acciones sin implementar su lógica. Las acciones utilizan los contratos de `types/`, lo que permite simular la API, la consola y la persistencia en las pruebas. `actions/listCities.ts` conserva la opción de mostrar todas las ciudades con su clima actual.
@@ -131,10 +142,13 @@ Las consultas tienen un límite de espera de 10 segundos. Los errores de red o d
 
 ```bash
 bun check
-bun test
+bun run test
+bun run test:coverage
 ```
 
-Las pruebas cubren las APIs con respuestas simuladas, la persistencia, el menú y la entrada de consola. También verifican que ciudades y ajustes compartan los datos sin sobrescribirse y que los errores de guardado no alteren el estado. No necesitan conexión a Internet ni modifican tu configuración habitual.
+Todas las pruebas, fixtures y auxiliares están en `test/` y utilizan `bun:test`, sin dependencias adicionales. Sus subdirectorios reflejan los de `src/`; las acciones se prueban a través de `presentation/menu.test.ts`, y `actions/` y `types/` conservan un `.gitkeep` mientras no tengan pruebas independientes. Bun descubre las pruebas de todos los subdirectorios automáticamente; `bun test` también permite ejecutarlas directamente.
+
+Las pruebas cubren las APIs con respuestas simuladas, las validaciones, la persistencia, las rutas de configuración, el menú y la entrada de consola. También verifican que ciudades y ajustes compartan los datos sin sobrescribirse, que los errores de guardado no alteren el estado y que los archivos temporales se limpien. No necesitan conexión a Internet ni modifican tu configuración habitual.
 
 El pronóstico se prueba desde mañana, con cambios de mes y año, fechas y datos incompletos, unidades Celsius/Fahrenheit, colores, cancelaciones y errores. No se han añadido dependencias para esta funcionalidad.
 
@@ -143,6 +157,8 @@ El pronóstico se prueba desde mañana, con cambios de mes y año, fechas y dato
 ```bash
 bun run build
 ```
+
+Este comando comprueba los tipos y ejecuta todas las pruebas antes de compilar. Si cualquiera de esas comprobaciones falla, termina con un código de error sin ejecutar el compilador ni reemplazar el ejecutable existente. Las pruebas verifican este bloqueo en un proyecto temporal con el compilador simulado.
 
 Genera `dist/weather.exe` en Windows o `dist/weather` en macOS/Linux para el sistema donde lo compiles. El ejecutable no requiere Bun instalado, pero sí Internet para consultar Open-Meteo.
 

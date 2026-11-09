@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { createColors, supportsColor } from "../src/utils/colors.ts";
+import { createColors, supportsColor } from "../../src/utils/colors.ts";
 
 describe("colores de terminal", () => {
   test.each([

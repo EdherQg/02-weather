@@ -8,8 +8,9 @@
     "dev": "bun run --watch src/index.ts",
     "check": "tsc --noEmit",
     "typecheck": "bun run check",
-    "test": "bun test",
-    "build": "bun build --compile --minify ./src/index.ts --outfile dist/weather"
+    "test": "bun test ./test",
+    "test:coverage": "bun test ./test --coverage --coverage-reporter=text",
+    "build": "bun run check && bun run test && bun build --compile --minify ./src/index.ts --outfile dist/weather"
   },
   "devDependencies": {
     "@types/bun": "latest"
